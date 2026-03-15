@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Diamond diagram with feedback</title>
+	</head>
+	<body style="background-color: #303030;">
+		<script type="module">
+
+			import Plex from "../../dist/index.js";
+
+			let counter;
+
+			const a = new Plex();
+			const b = new Plex();
+			const c = new Plex();
+			const d = new Plex();
+			const e = new Plex();
+			const f = new Plex();
+
+			Plex.addRelation(b, (x) => counter++, [ a ]);
+			Plex.addRelation(c, (x) => counter++, [ a ]);
+			Plex.addRelation(d, (x) => counter++, [ b ]);
+			Plex.addRelation(e, (x) => counter++, [ c ]);
+			Plex.addRelation(f, (x, y) => counter++, [ d, e ]);
+			Plex.addRelation(c, (x) => counter++, [ f ]);
+
+			counter = 0;
+			
+			a.value = counter++;
+
+			console.log({ "a": a.value, "b": b.value, "c": c.value, "d": d.value, "e": e.value, "f": f.value });
+
+		</script>
+	</body>
+</html>

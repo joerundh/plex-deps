@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<title>Sum of squares</title>
+	</head>
+	<body style="background-color: #303030;">
+		<script type="module">
+
+			import Plex from "../../dist/index.js";
+
+			const sumOfSquares = n => n*(n + 1)*(2*n + 1)/6;
+
+			const x = new Plex({ initialValue: 0 });
+
+			const y = Plex.define(n => n + 1, [ x ]);
+			const z = Plex.define((a, b) => a + b, [ x, y ]);
+
+			const s = Plex.define((a, b, c) => a*b*c/6, [ x, y, z ]);
+
+			for (let n = 1; n <= 10; n++) {
+				x.value = n;
+				const sum = sumOfSquares(n);
+				
+				console.log(`${s.value}\t${sum}`);
+			}
+
+		</script>
+	</body>
+</html>
