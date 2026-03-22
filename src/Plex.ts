@@ -1,17 +1,17 @@
 type RelationFn = (...args: any[]) => any;
-type Determiner = { fn: RelationFn, antecedents: Plex[] }
-type Schedule = { scheduleSet: Set<Plex>, determiners: Map<Plex, Determiner> };
+type Determiner = { antecedents: Plex[], fn: RelationFn };
+type Order = [ Set<Plex>, Map<Plex, Determiner> ];
+type Assignment = [ Plex, any ];
 type PlexArgs = { initialValue?: any };
-type Assignment = { assignee: Plex, newValue: any };
 
 const values: Map<Plex, any> = new Map<Plex, any>();
 const relations: Map<Plex, Map<Plex, Determiner>> = new Map<Plex, Map<Plex, Determiner>>();
 const immediateDependents: Map<Plex, Plex[]> = new Map<Plex, Plex[]>();
 
-function scheduleUpdates(starters: Plex[]): Schedule {
-	const starterSet: Set<Plex> = new Set<Plex>(starters);
+function computeOrder(starters: Plex[]): Order {
+	const startersSet: Set<Plex> = new Set<Plex>(starters);
 	
-	const scheduleSet: Set<Plex> = new Set<Plex>();
+	const order: Set<Plex> = new Set<Plex>();
 	const determiners: Map<Plex, Determiner> = new Map<Plex, Determiner>();
 
 	let primaryQueue: Plex[] = starters.filter(starter => immediateDependents.has(starter));
@@ -22,12 +22,12 @@ function scheduleUpdates(starters: Plex[]): Schedule {
 			if (!immediateDependents.has(antecedent)) continue;
 			
 			for (const dependent of immediateDependents.get(antecedent)!) {
-				if (starterSet.has(dependent)) continue;
+				if (startersSet.has(dependent)) continue;
 				
-				if (scheduleSet.has(dependent)) {
+				if (order.has(dependent)) {
 					for (const plex of determiners.get(dependent)!.antecedents) {
 						if (plex === antecedent) {
-							scheduleSet.delete(dependent);
+							order.delete(dependent);
 							break;
 						}
 					}
@@ -36,7 +36,7 @@ function scheduleUpdates(starters: Plex[]): Schedule {
 					const determiner: Determiner = relations.get(antecedent)!.get(dependent)!;
 					determiners.set(dependent, determiner);
 				}
-				scheduleSet.add(dependent);
+				order.add(dependent);
 			}
 		}
 
@@ -44,23 +44,64 @@ function scheduleUpdates(starters: Plex[]): Schedule {
 		secondaryQueue = [];
 	}
 
-	return { scheduleSet, determiners };
+	return [ order, determiners ];
 }
 
 function assignValues(assignments: Assignment[]): void {
-	for (const { assignee, newValue } of assignments) {
-		values.set(assignee, newValue);
+	const starters: Plex[] = new Array(assignments.length);
+	
+	for (let i = 0; i < assignments.length; i++) {
+		const [ starter, newStarterValue ]: Assignment = assignments[i]!;
+		starters[i] = starter;
+		values.set(starter, newStarterValue);
 	}
 
-	const starters = assignments.map(assignment => assignment.assignee);
-	const { scheduleSet, determiners } = scheduleUpdates(starters);
+	const [ order, determiners ]: Order = computeOrder(starters);
 	
-	for (const dependent of scheduleSet) {
-		const { fn, antecedents } = determiners.get(dependent)!;
+	for (const dependent of order) {
+		const { antecedents, fn } = determiners.get(dependent)!;
 		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
 		const newValue: any = fn.apply(null, args);
 		values.set(dependent, newValue);
 	}
+}
+
+async function assignValuesAsync(assignments: Assignment[]): Promise<void> {
+	const starters: Plex[] = new Array(assignments.length);
+	
+	const updatePromises: Map<Plex, Promise<any>> = new Map<Plex, Promise<any>>();
+
+	for (let i = 0; i < assignments.length; i++) {
+		const [ starter, newStarterValue ]: Assignment = assignments[i]!;
+		
+		starters[i] = starter;
+
+		const starterPromise = Promise.resolve(newStarterValue)
+			.then((resolvedValue: any): void => {
+				values.set(starter, resolvedValue);
+				return;
+			});
+		updatePromises.set(starter, starterPromise);
+	}
+
+	const [ order, determiners ]: Order = computeOrder(starters);
+
+	for (const dependent of order) {
+		const { antecedents, fn } = determiners.get(dependent)!;
+
+		const antecedentsPromises: Promise<any>[] = antecedents.map((antecedent: Plex): Promise<any> => Promise.resolve(updatePromises.get(antecedent) ?? values.get(antecedent)!));
+		
+		const dependentPromise = Promise.all(antecedentsPromises)
+			.then((resolvedArgs: any): Promise<any> => fn.apply(null, resolvedArgs))
+			.then((newValue: any): void => {
+				values.set(dependent, newValue);
+				return;	
+			});
+		
+		updatePromises.set(dependent, dependentPromise);
+	}
+
+	await Promise.all(updatePromises.values());
 }
 
 export default class Plex {
@@ -75,11 +116,11 @@ export default class Plex {
 	}
 
 	public set value(newValue: any) {
-		assignValues([ { assignee: this, newValue } ]);
+		assignValues([ [ this, newValue ] ]);
 	}
 
-	public assign(newValue: any) {
-		assignValues([ { assignee: this, newValue } ]);
+	public assign(newValue: any): void {
+		assignValues([ [ this, newValue ] ]);
 	}
 
 	static define(fn: RelationFn,  antecedents: Plex[]): Plex {
@@ -89,7 +130,7 @@ export default class Plex {
 		const initialValue: any = fn.apply(null, args);
 		const newPlex: Plex = new Plex({ initialValue });
 
-		const determiner: Determiner = { fn, antecedents };
+		const determiner: Determiner = { antecedents, fn };
 		
 		for (const antecedent of antecedents) {
 			if (!relations.has(antecedent)) {
@@ -104,11 +145,11 @@ export default class Plex {
 		return newPlex;
 	}
 
-	static addRelation(dependent: Plex, fn: RelationFn, antecedents: Plex[]) {
+	static addRelation(dependent: Plex, fn: RelationFn, antecedents: Plex[]): void {
 		if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return;
 		if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return;
 
-		const determiner: Determiner = { fn, antecedents };
+		const determiner: Determiner = { antecedents, fn };
 		
 		for (const antecedent of antecedents) {
 			if (antecedent === dependent) continue;
@@ -127,8 +168,13 @@ export default class Plex {
 		values.set(dependent, newValue);
 	}
 
-	static assign(assignments: Assignment[]) {
+	static assign(assignments: Assignment[]): void {
 		if (assignments.length === 0) return;
 		assignValues(assignments);
+	}
+
+	static async assignAsync(assignments: Assignment[]): Promise<void> {
+		if (assignments.length === 0) return;
+		await assignValuesAsync(assignments);
 	}
 }

@@ -1,9 +1,9 @@
 const values = new Map();
 const relations = new Map();
 const immediateDependents = new Map();
-function scheduleUpdates(starters) {
-    const starterSet = new Set(starters);
-    const scheduleSet = new Set();
+function computeOrder(starters) {
+    const startersSet = new Set(starters);
+    const order = new Set();
     const determiners = new Map();
     let primaryQueue = starters.filter(starter => immediateDependents.has(starter));
     let secondaryQueue = [];
@@ -12,12 +12,12 @@ function scheduleUpdates(starters) {
             if (!immediateDependents.has(antecedent))
                 continue;
             for (const dependent of immediateDependents.get(antecedent)) {
-                if (starterSet.has(dependent))
+                if (startersSet.has(dependent))
                     continue;
-                if (scheduleSet.has(dependent)) {
+                if (order.has(dependent)) {
                     for (const plex of determiners.get(dependent).antecedents) {
                         if (plex === antecedent) {
-                            scheduleSet.delete(dependent);
+                            order.delete(dependent);
                             break;
                         }
                     }
@@ -27,26 +27,55 @@ function scheduleUpdates(starters) {
                     const determiner = relations.get(antecedent).get(dependent);
                     determiners.set(dependent, determiner);
                 }
-                scheduleSet.add(dependent);
+                order.add(dependent);
             }
         }
         primaryQueue = secondaryQueue;
         secondaryQueue = [];
     }
-    return { scheduleSet, determiners };
+    return [order, determiners];
 }
 function assignValues(assignments) {
-    for (const { assignee, newValue } of assignments) {
-        values.set(assignee, newValue);
+    const starters = new Array(assignments.length);
+    for (let i = 0; i < assignments.length; i++) {
+        const [starter, newStarterValue] = assignments[i];
+        starters[i] = starter;
+        values.set(starter, newStarterValue);
     }
-    const starters = assignments.map(assignment => assignment.assignee);
-    const { scheduleSet, determiners } = scheduleUpdates(starters);
-    for (const dependent of scheduleSet) {
-        const { fn, antecedents } = determiners.get(dependent);
+    const [order, determiners] = computeOrder(starters);
+    for (const dependent of order) {
+        const { antecedents, fn } = determiners.get(dependent);
         const args = antecedents.map(antecedent => values.get(antecedent));
         const newValue = fn.apply(null, args);
         values.set(dependent, newValue);
     }
+}
+async function assignValuesAsync(assignments) {
+    const starters = new Array(assignments.length);
+    const updatePromises = new Map();
+    for (let i = 0; i < assignments.length; i++) {
+        const [starter, newStarterValue] = assignments[i];
+        starters[i] = starter;
+        const starterPromise = Promise.resolve(newStarterValue)
+            .then((resolvedValue) => {
+            values.set(starter, resolvedValue);
+            return;
+        });
+        updatePromises.set(starter, starterPromise);
+    }
+    const [order, determiners] = computeOrder(starters);
+    for (const dependent of order) {
+        const { antecedents, fn } = determiners.get(dependent);
+        const antecedentsPromises = antecedents.map((antecedent) => Promise.resolve(updatePromises.get(antecedent) ?? values.get(antecedent)));
+        const dependentPromise = Promise.all(antecedentsPromises)
+            .then((resolvedArgs) => fn.apply(null, resolvedArgs))
+            .then((newValue) => {
+            values.set(dependent, newValue);
+            return;
+        });
+        updatePromises.set(dependent, dependentPromise);
+    }
+    await Promise.all(updatePromises.values());
 }
 export default class Plex {
     constructor({ initialValue } = {}) {
@@ -56,10 +85,10 @@ export default class Plex {
         return values.get(this);
     }
     set value(newValue) {
-        assignValues([{ assignee: this, newValue }]);
+        assignValues([[this, newValue]]);
     }
     assign(newValue) {
-        assignValues([{ assignee: this, newValue }]);
+        assignValues([[this, newValue]]);
     }
     static define(fn, antecedents) {
         if (antecedents.length === 0)
@@ -67,7 +96,7 @@ export default class Plex {
         const args = antecedents.map(antecedent => values.get(antecedent));
         const initialValue = fn.apply(null, args);
         const newPlex = new Plex({ initialValue });
-        const determiner = { fn, antecedents };
+        const determiner = { antecedents, fn };
         for (const antecedent of antecedents) {
             if (!relations.has(antecedent)) {
                 relations.set(antecedent, new Map());
@@ -83,7 +112,7 @@ export default class Plex {
             return;
         if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent)))
             return;
-        const determiner = { fn, antecedents };
+        const determiner = { antecedents, fn };
         for (const antecedent of antecedents) {
             if (antecedent === dependent)
                 continue;
@@ -102,6 +131,11 @@ export default class Plex {
         if (assignments.length === 0)
             return;
         assignValues(assignments);
+    }
+    static async assignAsync(assignments) {
+        if (assignments.length === 0)
+            return;
+        await assignValuesAsync(assignments);
     }
 }
 //# sourceMappingURL=Plex.js.map
