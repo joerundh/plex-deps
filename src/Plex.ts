@@ -107,7 +107,10 @@ async function assignValuesAsync(assignments: AsyncAssignment[]): Promise<void> 
 	await Promise.all(updatePromises.values());
 }
 
-function addRelation(dependent: Plex, antecedents: Plex[], fn: RelationFn | AsyncRelationFn): void {
+function addRelation(dependent: Plex, antecedents: Plex[], fn: RelationFn | AsyncRelationFn): boolean {
+	if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return false;
+	if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return false;
+	
 	const determiner: Determiner = { antecedents, fn };
 			
 	for (const antecedent of antecedents) {
@@ -121,6 +124,8 @@ function addRelation(dependent: Plex, antecedents: Plex[], fn: RelationFn | Asyn
 		relations.get(antecedent)!.set(dependent, determiner);
 		immediateDependents.get(antecedent)!.push(dependent);
 	}
+
+	return true;
 }
 
 function createDependent(initial: any, antecedents: Plex[], fn: RelationFn | AsyncRelationFn) {
@@ -153,6 +158,24 @@ export default class Plex {
 		await assignValuesAsync([ [ this, newValue ] ]);
 	}
 
+	public relate(antecedents: Plex[], fn: RelationFn): void {
+		Plex.relate(this, antecedents, fn);
+	}
+
+	public async relateAsync(antecedents: Plex[], fn: AsyncRelationFn): Promise<void> {
+		await Plex.relateAsync(this, antecedents, fn);
+	}
+
+	static assign(assignments: Assignment[]): void {
+		if (assignments.length === 0) return;
+		assignValues(assignments);
+	}
+
+	static async assignAsync(assignments: Assignment[]): Promise<void> {
+		if (assignments.length === 0) return;
+		await assignValuesAsync(assignments);
+	}
+
 	static define(antecedents: Plex[], fn: RelationFn): Plex {
 		if (antecedents.length === 0) {
 			const initial: any = fn();
@@ -178,10 +201,7 @@ export default class Plex {
 	}
 
 	static relate(dependent: Plex, antecedents: Plex[], fn: RelationFn): void {
-		if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return;
-		if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return;
-
-		addRelation(dependent, antecedents, fn)
+		if (!addRelation(dependent, antecedents, fn)) return;
 
 		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
 		const newValue = fn(...args);
@@ -189,23 +209,10 @@ export default class Plex {
 	}
 
 	static async relateAsync(dependent: Plex, antecedents: Plex[], fn: AsyncRelationFn): Promise<void> {
-		if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return;
-		if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return;
-
-		addRelation(dependent, antecedents, fn)
+		if (!addRelation(dependent, antecedents, fn)) return;
 
 		const args: any[] = await Promise.all(antecedents.map(antecedent => values.get(antecedent)!));
 		const newValue = await fn(...args);
 		values.set(dependent, newValue);
-	}
-
-	static assign(assignments: Assignment[]): void {
-		if (assignments.length === 0) return;
-		assignValues(assignments);
-	}
-
-	static async assignAsync(assignments: Assignment[]): Promise<void> {
-		if (assignments.length === 0) return;
-		await assignValuesAsync(assignments);
 	}
 }

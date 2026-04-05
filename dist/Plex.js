@@ -78,6 +78,10 @@ async function assignValuesAsync(assignments) {
     await Promise.all(updatePromises.values());
 }
 function addRelation(dependent, antecedents, fn) {
+    if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent))
+        return false;
+    if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent)))
+        return false;
     const determiner = { antecedents, fn };
     for (const antecedent of antecedents) {
         if (antecedent === dependent)
@@ -89,6 +93,7 @@ function addRelation(dependent, antecedents, fn) {
         relations.get(antecedent).set(dependent, determiner);
         immediateDependents.get(antecedent).push(dependent);
     }
+    return true;
 }
 function createDependent(initial, antecedents, fn) {
     const newPlex = new Plex(initial);
@@ -112,6 +117,22 @@ export default class Plex {
     async assignAsync(newValue) {
         await assignValuesAsync([[this, newValue]]);
     }
+    relate(antecedents, fn) {
+        Plex.relate(this, antecedents, fn);
+    }
+    async relateAsync(antecedents, fn) {
+        await Plex.relateAsync(this, antecedents, fn);
+    }
+    static assign(assignments) {
+        if (assignments.length === 0)
+            return;
+        assignValues(assignments);
+    }
+    static async assignAsync(assignments) {
+        if (assignments.length === 0)
+            return;
+        await assignValuesAsync(assignments);
+    }
     static define(antecedents, fn) {
         if (antecedents.length === 0) {
             const initial = fn();
@@ -131,34 +152,18 @@ export default class Plex {
         return createDependent(initial, antecedents, fn);
     }
     static relate(dependent, antecedents, fn) {
-        if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent))
+        if (!addRelation(dependent, antecedents, fn))
             return;
-        if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent)))
-            return;
-        addRelation(dependent, antecedents, fn);
         const args = antecedents.map(antecedent => values.get(antecedent));
         const newValue = fn(...args);
         values.set(dependent, newValue);
     }
     static async relateAsync(dependent, antecedents, fn) {
-        if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent))
+        if (!addRelation(dependent, antecedents, fn))
             return;
-        if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent)))
-            return;
-        addRelation(dependent, antecedents, fn);
         const args = await Promise.all(antecedents.map(antecedent => values.get(antecedent)));
         const newValue = await fn(...args);
         values.set(dependent, newValue);
-    }
-    static assign(assignments) {
-        if (assignments.length === 0)
-            return;
-        assignValues(assignments);
-    }
-    static async assignAsync(assignments) {
-        if (assignments.length === 0)
-            return;
-        await assignValuesAsync(assignments);
     }
 }
 //# sourceMappingURL=Plex.js.map
