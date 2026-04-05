@@ -1,8 +1,11 @@
 type RelationFn = (...args: any[]) => any;
-type Determiner = { antecedents: Plex[], fn: RelationFn };
+type AsyncRelationFn = (...args: (any | Promise<any>)[]) => any | Promise<any>;
+
+type Determiner = { antecedents: Plex[], fn: RelationFn | AsyncRelationFn };
 type Order = [ Set<Plex>, Map<Plex, Determiner> ];
+
 type Assignment = [ Plex, any ];
-type PlexArgs = { initialValue?: any };
+type AsyncAssignment = [ Plex, any | Promise<any> ];
 
 const values: Map<Plex, any> = new Map<Plex, any>();
 const relations: Map<Plex, Map<Plex, Determiner>> = new Map<Plex, Map<Plex, Determiner>>();
@@ -61,12 +64,12 @@ function assignValues(assignments: Assignment[]): void {
 	for (const dependent of order) {
 		const { antecedents, fn } = determiners.get(dependent)!;
 		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
-		const newValue: any = fn.apply(null, args);
+		const newValue: any = fn(...args);
 		values.set(dependent, newValue);
 	}
 }
 
-async function assignValuesAsync(assignments: Assignment[]): Promise<void> {
+async function assignValuesAsync(assignments: AsyncAssignment[]): Promise<void> {
 	const starters: Plex[] = new Array(assignments.length);
 	
 	const updatePromises: Map<Plex, Promise<any>> = new Map<Plex, Promise<any>>();
@@ -92,7 +95,7 @@ async function assignValuesAsync(assignments: Assignment[]): Promise<void> {
 		const antecedentsPromises: Promise<any>[] = antecedents.map((antecedent: Plex): Promise<any> => Promise.resolve(updatePromises.get(antecedent) ?? values.get(antecedent)!));
 		
 		const dependentPromise = Promise.all(antecedentsPromises)
-			.then((resolvedArgs: any): Promise<any> => fn.apply(null, resolvedArgs))
+			.then((resolvedArgs: any): Promise<any> => fn(...resolvedArgs))
 			.then((newValue: any): void => {
 				values.set(dependent, newValue);
 				return;	
@@ -104,11 +107,34 @@ async function assignValuesAsync(assignments: Assignment[]): Promise<void> {
 	await Promise.all(updatePromises.values());
 }
 
+function addRelation(dependent: Plex, antecedents: Plex[], fn: RelationFn | AsyncRelationFn): void {
+	const determiner: Determiner = { antecedents, fn };
+			
+	for (const antecedent of antecedents) {
+		if (antecedent === dependent) continue;
+
+		if (!relations.has(antecedent)) {
+			relations.set(antecedent, new Map<Plex, Determiner>());
+			immediateDependents.set(antecedent, []);
+		}
+		
+		relations.get(antecedent)!.set(dependent, determiner);
+		immediateDependents.get(antecedent)!.push(dependent);
+	}
+}
+
+function createDependent(initial: any, antecedents: Plex[], fn: RelationFn | AsyncRelationFn) {
+	const newPlex: Plex = new Plex(initial);
+
+	addRelation(newPlex, antecedents, fn);
+
+	return newPlex;
+}
+
 export default class Plex {
-	constructor({
-		initialValue
-	}: PlexArgs = {}) {
-		values.set(this, initialValue);
+	constructor(...args: any[]) {
+		const initial: any = args.length ? args[0] : undefined;
+		values.set(this, initial);
 	}
 
 	public get value(): any {
@@ -123,48 +149,53 @@ export default class Plex {
 		assignValues([ [ this, newValue ] ]);
 	}
 
-	static define(fn: RelationFn,  antecedents: Plex[]): Plex {
-		if (antecedents.length === 0) return new Plex();
-
-		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
-		const initialValue: any = fn.apply(null, args);
-		const newPlex: Plex = new Plex({ initialValue });
-
-		const determiner: Determiner = { antecedents, fn };
-		
-		for (const antecedent of antecedents) {
-			if (!relations.has(antecedent)) {
-				relations.set(antecedent, new Map<Plex, Determiner>());
-				immediateDependents.set(antecedent, []);
-			}
-			
-			relations.get(antecedent)!.set(newPlex, determiner);
-			immediateDependents.get(antecedent)!.push(newPlex);
-		}
-		
-		return newPlex;
+	public async assignAsync(newValue: any | Promise<any>): Promise<void> {
+		await assignValuesAsync([ [ this, newValue ] ]);
 	}
 
-	static addRelation(dependent: Plex, fn: RelationFn, antecedents: Plex[]): void {
+	static define(antecedents: Plex[], fn: RelationFn): Plex {
+		if (antecedents.length === 0) {
+			const initial: any = fn();
+			return new Plex(initial);
+		}
+
+		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
+		const initial: any = fn(...args);
+		
+		return createDependent(initial, antecedents, fn);
+	}
+
+	static async defineAsync(antecedents: Plex[], fn: AsyncRelationFn): Promise<Plex> {
+		if (antecedents.length === 0) {
+			const initial: any = await fn();
+			return new Plex(initial);
+		}
+
+		const args: any[] = await Promise.all(antecedents.map(antecedent => values.get(antecedent)!));
+		const initial: any = await fn(...args);
+
+		return createDependent(initial, antecedents, fn);
+	}
+
+	static relate(dependent: Plex, antecedents: Plex[], fn: RelationFn): void {
 		if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return;
 		if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return;
 
-		const determiner: Determiner = { antecedents, fn };
-		
-		for (const antecedent of antecedents) {
-			if (antecedent === dependent) continue;
-
-			if (!relations.has(antecedent)) {
-				relations.set(antecedent, new Map<Plex, Determiner>());
-				immediateDependents.set(antecedent, []);
-			}
-			
-			relations.get(antecedent)!.set(dependent, determiner);
-			immediateDependents.get(antecedent)!.push(dependent);
-		}
+		addRelation(dependent, antecedents, fn)
 
 		const args: any[] = antecedents.map(antecedent => values.get(antecedent)!);
-		const newValue = fn.apply(null, args);
+		const newValue = fn(...args);
+		values.set(dependent, newValue);
+	}
+
+	static async relateAsync(dependent: Plex, antecedents: Plex[], fn: AsyncRelationFn): Promise<void> {
+		if (antecedents.length === 0 || (antecedents.length === 1 && antecedents[0] === dependent)) return;
+		if (antecedents.some(antecedent => relations.get(antecedent)?.has(dependent))) return;
+
+		addRelation(dependent, antecedents, fn)
+
+		const args: any[] = await Promise.all(antecedents.map(antecedent => values.get(antecedent)!));
+		const newValue = await fn(...args);
 		values.set(dependent, newValue);
 	}
 

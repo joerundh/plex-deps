@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+        <head>
+                <meta charset="UTF-8">
+                <title>Object values</title>
+        </head>
+        <body style="background-color: #303030;">
+                <script type="module">
+
+                        import Plex from "../../dist/index.js";
+
+						const person = new Plex(null);
+						
+						const name = Plex.define([ person ], obj => obj?.name);
+						const age = Plex.define([ person ], obj => obj?.age);
+						
+						person.value = { name: "Patrick", age: 36 };
+						console.log(`${name.value} is ${age.value} years old.`);
+						// Output: Patrick is 36 years old.
+						
+						person.value = { name: "Michael", age: 31 };
+						console.log(`${name.value} is ${age.value} years old.`);
+						// Output: Michael is 31 years old.
+
+                </script>
+        </body>
+</html>
