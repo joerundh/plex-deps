@@ -100,6 +100,60 @@ y.value = 49;
 console.log(x.value, y.value);  // 7, 49
 ```
 
+**Coordinate transforms:**
+
+Sets of three and three variables represent different three-dimensional coordinates. Relations are established, and when one set is updated, so is the other in turn. This example illustrates the use of the static function `assign` for batched assignments, which also leaves the user-assigned instances out of the dependency update. The function `format` is defined and used to disregard floating-point errors.
+
+```ts
+const format = num => Math.round(10000*num)/10000;
+
+const x = new Plex(0);
+const y = new Plex(0);
+const z = new Plex(0);
+
+const r = Plex.define([ x, y, z ], (x, y, z) => Math.sqrt(x*x + y*y + z*z));
+const theta = Plex.define([ x, y, z ], (x, y, z) => Math.atan2(Math.sqrt(x*x + y*y), z));
+const phi = Plex.define([ x, y, z ], (x, y, z) => Math.atan2(y, x));
+
+x.relate([ r, theta, phi ], (r, theta, phi) => r*Math.sin(theta)*Math.cos(phi));
+y.relate([ r, theta, phi ], (r, theta, phi) => r*Math.sin(theta)*Math.sin(phi));
+z.relate([ r, theta, phi ], (r, theta, phi) => r*Math.cos(theta));
+
+console.log("Initial values:");
+console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
+console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
+// {x: 1, y: 0, z: 0}
+// {r: 0, theta: 0, phi: 0}
+
+console.log("Set: x = 1");
+Plex.assign([ [ x, 1 ], [ y, y.value ], [ z, z.value ] ]);
+console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
+console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
+// {x: 1, y: 0, z: 0}
+// {r: 1, theta: 1.5708, phi: 0}
+
+console.log("Set phi = pi/2:");
+Plex.assign([ [ r, r.value  ], [ theta, theta.value ], [ phi, Math.PI/2 ] ]);
+console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
+console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
+// {x: 0, y: 1, z: 0}
+// {r: 1, theta: 1.5708, phi: 1.5708}
+
+console.log("Set theta = 0");
+Plex.assign([ [ r, r.value ], [ theta, 0 ], [ phi, phi.value ] ]);
+console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
+console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
+// {x: 0, y: 0, z: 1}
+// {r: 1, theta: 0, phi: 1.5708}
+
+console.log("Set z = -z");
+Plex.assign([ [ x, x.value ], [ y, y.value ], [ z, -z.value ] ]);
+console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
+console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
+// {x: 0, y: 0, z: -1}
+// {r: 1, theta: 3.1416, phi: 0}
+```
+
 **Autodependency:**
 
 The value function assigns the new value of `num` to `even` if the new value is even; otherwise, it assigns the existing value of `even`, effectively not updating it.
