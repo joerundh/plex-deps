@@ -119,34 +119,34 @@ x.relate([ r, theta, phi ], (r, theta, phi) => r*Math.sin(theta)*Math.cos(phi));
 y.relate([ r, theta, phi ], (r, theta, phi) => r*Math.sin(theta)*Math.sin(phi));
 z.relate([ r, theta, phi ], (r, theta, phi) => r*Math.cos(theta));
 
-console.log("Initial values:");
+// Initial values
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
 // {x: 1, y: 0, z: 0}
 // {r: 0, theta: 0, phi: 0}
 
-console.log("Set: x = 1");
+// Set x = 1
 Plex.assign([ [ x, 1 ], [ y, y.value ], [ z, z.value ] ]);
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
 // {x: 1, y: 0, z: 0}
 // {r: 1, theta: 1.5708, phi: 0}
 
-console.log("Set phi = pi/2:");
+// Set phi = pi/2
 Plex.assign([ [ r, r.value  ], [ theta, theta.value ], [ phi, Math.PI/2 ] ]);
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
 // {x: 0, y: 1, z: 0}
 // {r: 1, theta: 1.5708, phi: 1.5708}
 
-console.log("Set theta = 0");
+// Set theta = 0
 Plex.assign([ [ r, r.value ], [ theta, 0 ], [ phi, phi.value ] ]);
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
 // {x: 0, y: 0, z: 1}
 // {r: 1, theta: 0, phi: 1.5708}
 
-console.log("Set z = -z");
+// Set z = -z
 Plex.assign([ [ x, x.value ], [ y, y.value ], [ z, -z.value ] ]);
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
