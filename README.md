@@ -176,4 +176,6 @@ console.log(num.value, even.value);     // 120 120
 
 ## Disclaimer
 
-`plex-deps` is designed to provide flexibility and reactive interdependency without enforcing strict constraints on the values assigned to `Plex` instances. Users are responsible for ensuring that the values they provide are appropriate for the functions defined in dependencies, or otherwise to perform the appropriate validations.
+`plex-deps` is designed to provide flexibility in defining reactive interdependencies, without enforcing strict constraints on user-defined functions attached to, or on values assigned to, `Plex` instances.
+
+Users are responsible for the behaviour of these attached functions, as well as for the validity of assigned values, or for performing appropriate validation.
