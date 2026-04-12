@@ -1,28 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
-        <head>
-                <meta charset="UTF-8">
-                <title>Autodependency</title>
-        </head>
-        <body style="background-color: #303030;">
-                <script type="module">
+	<head>
+		<meta charset="UTF-8">
+		<title>Example: Autodependency</title>
+	</head>
+	<body style="background-color: #303030;">
+		<script type="module">
 
-                        import Plex from "../../dist/index.js";
+			import Plex from "../../dist/index.js";
 
-						const num = new Plex(0);
-						const even = new Plex(0);
+			const num = new Plex(0);
+			const even = new Plex(0);
 
-						even.relate([ even, num ], (a, b) => b % 2 === 0 ? b : a);
+			even.relate([ even, num ], (a, b) => b % 2 === 0 ? b : a);
 
-						num.value = 6;
-						console.log(num.value, even.value);
+			num.value = 6;
+			console.log(num.value, even.value);
 
-						num.value = 13;
-						console.log(num.value, even.value);
+			num.value = 13;
+			console.log(num.value, even.value);
 
-						num.value = 120;
-						console.log(num.value, even.value);
+			num.value = 120;
+			console.log(num.value, even.value);
 
-                </script>
-        </body>
+		</script>
+	</body>
 </html>

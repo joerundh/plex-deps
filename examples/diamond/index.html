@@ -18,18 +18,20 @@
 			const e = new Plex();
 			const f = new Plex();
 
-			Plex.addRelation(b, (x) => counter++, [ a ]);
-			Plex.addRelation(c, (x) => counter++, [ a ]);
-			Plex.addRelation(d, (x) => counter++, [ b ]);
-			Plex.addRelation(e, (x) => counter++, [ c ]);
-			Plex.addRelation(f, (x, y) => counter++, [ d, e ]);
-			Plex.addRelation(c, (x) => counter++, [ f ]);
+			Plex.relate(b, [ a ], (x) => counter++);
+			Plex.relate(c, [ a ], (x) => counter++);
+			Plex.relate(d, [ b ], (x) => counter++);
+			Plex.relate(e, [ c ], (x) => counter++);
+			Plex.relate(f, [ d ], (x) => counter++);
+			Plex.relate(f, [ e ], (x) => counter++);
+			Plex.relate(c, [ f ], (x) => counter++);
 
 			counter = 0;
 			
 			a.value = counter++;
 
 			console.log({ "a": a.value, "b": b.value, "c": c.value, "d": d.value, "e": e.value, "f": f.value });
+			// Output: {a: 0, b: 1, c: 2, d: 3, e: 4, f: 5 }
 
 		</script>
 	</body>

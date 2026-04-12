@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
-        <head>
-                <meta charset="UTF-8">
-                <title>Bidirectionality</title>
-        </head>
-        <body style="background-color: #303030;">
-                <script type="module">
+	<head>
+		<meta charset="UTF-8">
+		<title>Bidirectionality</title>
+	</head>
+	<body style="background-color: #303030;">
+		<script type="module">
+		
+			import Plex from "../../dist/index.js";
 
-                        import Plex from "../../dist/index.js";
+			const x = new Plex(0);
+			const y = Plex.define([ x ], a => a*a);
+			Plex.relate(x, [ y ], Math.sqrt);
 
-						const x = new Plex(0);
-						const y = Plex.define([ x ], a => a*a);
-						Plex.relate(x, [ y ], Math.sqrt);
+			x.value = 5;
+			console.log(x.value, y.value);
 
-						x.value = 5;
-						console.log(x.value, y.value);
+			y.value = 49;
+			console.log(x.value, y.value);
 
-						y.value = 49;
-						console.log(x.value, y.value);
-
-                </script>
-        </body>
+		</script>
+	</body>
 </html>
