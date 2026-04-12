@@ -1,6 +1,6 @@
 {
   "name": "plex-deps",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A variable class for defining bidirectional dependencies with automatic update propagation using topological ordering.",
   "main": "index.js",
   "scripts": {
