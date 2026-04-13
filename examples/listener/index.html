@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Changed-value callback</title>
+	</head>
+	<body style="background-color: #303030;">
+		<script type="module">
+
+			import Plex from "../../dist/index.js";
+
+			const x = new Plex();
+			const x_listener = new Plex();
+
+			x_listener.relate(
+				[ x, x_listener ],
+				(newValue, prevValue) => {
+					if (!Object.is(newValue, prevValue)) {
+						console.log(`The value was changed from ${prevValue} to ${newValue}`);
+					}
+					return newValue;
+				}
+			);
+
+			x.value = 0;
+			// Output: The value was changed from undefined to 0
+			x.value++;
+			// Output: The value was changed from 0 to 1
+			x.value = 1;
+			// Output: (none)
+			x.value = "yes";
+			// Output: The value was changed from 0 to yes
+			x.value = false;
+			// Output: The value was changed from yes to false
+			
+		</script>
+	</body>
+</html>

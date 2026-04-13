@@ -174,6 +174,36 @@ num.value = 120;
 console.log(num.value, even.value);     // 120 120
 ```
 
+**Changed-value listener:**
+
+Given a `Plex` instance `x`, another instance `x_listener` can be defined as a dependent of `x` and of itself, with a value function taking in both values. These may then be compared, and user-defined actions (under certain constraints) can be performed. Comparison requires the previous value to be returned by the callback, and thus assigned to `x_listener`. 
+
+```ts
+const x = new Plex();
+const x_listener = new Plex();
+
+x_listener.relate(
+	[ x, x_listener ],
+	(newValue, prevValue) => {
+		if (!Object.is(newValue, prevValue)) {
+			console.log(`The value was changed from ${prevValue} to ${newValue}`);
+		}
+		return newValue;
+	}
+);
+
+x.value = 0;
+// Output: The value was changed from undefined to 0
+x.value++;
+// Output: The value was changed from 0 to 1
+x.value = 1;
+// Output: (none)
+x.value = "yes";
+// Output: The value was changed from 0 to yes
+x.value = false;
+// Output: The value was changed from yes to false
+```
+
 ## Disclaimer
 
 `plex-deps` is designed to provide flexibility in defining reactive interdependencies, without enforcing strict constraints on user-defined functions attached to, or on values assigned to, `Plex` instances.
