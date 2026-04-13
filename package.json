@@ -2,14 +2,15 @@
   "name": "plex-deps",
   "version": "0.1.0",
   "description": "An engine exposing a variable class for defining bidirectional dependencies with automatic update propagation using topological ordering.",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "dev": "tsc --watch"
   },
   "keywords": [],
-  "author": "",
+  "author": "Jørund Halvorsen",
   "license": "MIT",
   "type": "module",
   "devDependencies": {
