@@ -122,7 +122,7 @@ z.relate([ r, theta, phi ], (r, theta, phi) => r*Math.cos(theta));
 // Initial values
 console.log({ x: format(x.value), y: format(y.value), z: format(z.value) });
 console.log({ r: format(r.value), theta: format(theta.value), phi: format(phi.value) });
-// {x: 1, y: 0, z: 0}
+// {x: 0, y: 0, z: 0}
 // {r: 0, theta: 0, phi: 0}
 
 // Set x = 1
